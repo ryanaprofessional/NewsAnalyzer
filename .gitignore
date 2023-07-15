@@ -1,0 +1,6 @@
+**/.vs/
+**/.vs/*
+newsAnalyzer/bin/*
+**/obj/*
+**/bin/*
+**/build
