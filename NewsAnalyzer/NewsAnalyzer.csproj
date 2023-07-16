@@ -5,10 +5,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>3d194541-a13f-4ce7-acdf-21bbe6b140b7</UserSecretsId>
+    <RootNamespace />
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Ai\Clients\" />
+    <Folder Include="Ai\Models\Response\" />
+    <Folder Include="Ai\Models\Request\" />
   </ItemGroup>
 
 </Project>
