@@ -9,10 +9,12 @@ builder.Services.AddTransient<NewsApiClient>();
 
 // Repositories
 builder.Services.AddTransient<NewsApiRepository>();
+builder.Services.AddTransient<ArticleRepository>();
 
 // Services
 builder.Services.AddTransient<QueryNewsApiService>();
 builder.Services.AddTransient<ControllerResponseService>();
+builder.Services.AddTransient<PersistNewsArticleService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

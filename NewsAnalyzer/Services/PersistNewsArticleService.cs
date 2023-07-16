@@ -1,0 +1,26 @@
+﻿using NewsAnalyzer.Repositories;
+using NewsAnalyzer.Models.Other;
+
+namespace NewsAnalyzer.Services
+{
+    /// <summary>
+    /// This service is responsible for communication between the controllers and the persistence layer.
+    /// </summary>
+    public class PersistNewsArticleService
+    {
+        private readonly ArticleRepository _newsArticleRepository;
+        public PersistNewsArticleService(ArticleRepository newsArticleRepository)
+        {
+            _newsArticleRepository = newsArticleRepository;
+        }
+
+        public async Task<PersistedResult> PersistNewsArticles(NewsArticles newsArticles)
+        {
+            return await _newsArticleRepository.PersistNewsArticles(newsArticles);
+        }
+        public async Task<PersistedResult> GetNewsArticles(int id)
+        {
+            return await _newsArticleRepository.GetNewsArticles(id);
+        }
+    }
+}

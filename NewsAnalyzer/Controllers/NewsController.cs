@@ -2,7 +2,6 @@
 using NewsAnalyzer.Models.Request;
 using NewsAnalyzer.Models.Other;
 using NewsAnalyzer.Services;
-using NewsAnalyzer.Static;
 
 namespace NewsAnalyzer.Controllers
 {
@@ -11,12 +10,14 @@ namespace NewsAnalyzer.Controllers
         private readonly ILogger<NewsController> _logger;
         private readonly QueryNewsApiService _apiQueryService;
         private readonly ControllerResponseService _controllerResponseService;
+        private readonly PersistNewsArticleService _persistNewsArticleService;
 
-        public NewsController(ILogger<NewsController> logger, QueryNewsApiService apiQueryService, ControllerResponseService controllerResponseService)
+        public NewsController(ILogger<NewsController> logger, QueryNewsApiService apiQueryService, ControllerResponseService controllerResponseService, PersistNewsArticleService persistNewsArticleService)
         {
             _logger = logger;
             _apiQueryService = apiQueryService;
             _controllerResponseService = controllerResponseService;
+            _persistNewsArticleService = persistNewsArticleService;
         }
 
         /// <summary>
@@ -33,7 +34,15 @@ namespace NewsAnalyzer.Controllers
                 return _controllerResponseService.ErrorResponse(newsArticles.ErrorStatus, newsArticles.Message);
             }
 
-            return null;
+            PersistedResult persistedResult = await _persistNewsArticleService.PersistNewsArticles(newsArticles);
+            if (persistedResult.IsSuccess)
+            {
+                return Ok(persistedResult);
+            }
+            else
+            {
+                return _controllerResponseService.ErrorResponse(persistedResult.ErrorStatus, persistedResult.Message);
+            }
         }
     }
 }
