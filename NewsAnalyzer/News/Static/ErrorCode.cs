@@ -1,4 +1,4 @@
-namespace News.News.Static
+namespace News.Static
 {
 
     public class ErrorCode

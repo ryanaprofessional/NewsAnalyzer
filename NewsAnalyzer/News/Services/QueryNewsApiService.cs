@@ -1,7 +1,7 @@
 ﻿using News.Repositories;
 using News.Models.Request;
 using News.Models.Other;
-using News.News.Static;
+using News.Static;
 
 namespace News.Services
 {

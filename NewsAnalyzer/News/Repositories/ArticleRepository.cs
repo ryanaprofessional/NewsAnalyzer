@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 using News.Models.Other;
-using News.News.Static;
+using News.Static;
 
 namespace News.Repositories
 {
