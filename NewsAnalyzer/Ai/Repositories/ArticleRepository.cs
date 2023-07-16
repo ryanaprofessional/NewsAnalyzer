@@ -36,31 +36,26 @@ namespace Ai.Repositories
             }
             catch (JsonException ex)
             {
-                retrievalResult.Code = ErrorCode.Custom;
                 retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
                 retrievalResult.Message = "Error occurred during JSON serialization";
             }
             catch (IOException ex)
             {
-                retrievalResult.Code = ErrorCode.Custom;
                 retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
                 retrievalResult.Message = "IO error occurred while writing JSON data";
             }
             catch (UnauthorizedAccessException ex)
             {
-                retrievalResult.Code = ErrorCode.Custom;
                 retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
                 retrievalResult.Message = "Access denied while writing JSON data";
             }
             catch (ArgumentException ex)
             {
-                retrievalResult.Code = ErrorCode.Custom;
                 retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
                 retrievalResult.Message = "Invalid file path";
             }
             catch (Exception ex)
             {
-                retrievalResult.Code = ErrorCode.Custom;
                 retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
                 retrievalResult.Message = "Unhandled error occurred";
             }

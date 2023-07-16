@@ -44,31 +44,26 @@ namespace Ai.Repositories
             }
             catch (HttpRequestException ex)
             {
-                summaryOfArticles.Code = ErrorCode.Custom;
                 summaryOfArticles.ErrorStatus = ErrorStatus.BadRequest;
                 summaryOfArticles.Message = internalErrorDefaultMessage + "Failed to complete 3rd party HTTPRequest.  This error can be thrown if there is an issue with the HTTP request, such as network connectivity problems, DNS resolution failures, or server-side error.";
             }
             catch (TaskCanceledException ex)
             {
-                summaryOfArticles.Code = ErrorCode.Custom;
                 summaryOfArticles.ErrorStatus = ErrorStatus.Timeout;
                 summaryOfArticles.Message = internalErrorDefaultMessage + "3rd party HTTP request timed out or was canceled before receiving a response.";
             }
             catch (JsonException ex)
             {
-                summaryOfArticles.Code = ErrorCode.Custom;
                 summaryOfArticles.ErrorStatus = ErrorStatus.UnprocessableEntity;
                 summaryOfArticles.Message = internalErrorDefaultMessage + "Possible malformed JSON or incompatible data types when parsing response from 3rd party.";
             }
             catch (InvalidOperationException ex)
             {
-                summaryOfArticles.Code = ErrorCode.Custom;
-                summaryOfArticles.ErrorStatus = ErrorStatus.NotFound;
+                 summaryOfArticles.ErrorStatus = ErrorStatus.NotFound;
                 summaryOfArticles.Message = internalErrorDefaultMessage + "Trouble making valid 3rd party HTTPRequest to retrieve news articles.  Potentially bad URL.";
             }
             catch (Exception ex)
             {
-                summaryOfArticles.Code = ErrorCode.Custom;
                 summaryOfArticles.ErrorStatus = ErrorStatus.InternalServerError;
                 summaryOfArticles.Message = internalErrorDefaultMessage + "Novel error causing breaking problem resulting in failure to retrieve data from 3rd party api.";
             }

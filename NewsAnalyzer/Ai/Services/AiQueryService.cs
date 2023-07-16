@@ -51,7 +51,6 @@ namespace Ai.Services
             {
                 return new ChatAnswer
                 {
-                    Code = "custom",
                     ErrorStatus = ErrorStatus.InternalServerError,
                     Message = "Internal Error.  Failed to reduce the news articles to a summarizable format."
                 };
