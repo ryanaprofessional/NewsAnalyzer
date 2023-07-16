@@ -1,7 +1,7 @@
-﻿using NewsAnalyzer.Repositories;
-using NewsAnalyzer.Models.Other;
+﻿using News.Repositories;
+using News.Models.Other;
 
-namespace NewsAnalyzer.Services
+namespace News.Services
 {
     /// <summary>
     /// This service is responsible for communication between the controllers and the persistence layer.

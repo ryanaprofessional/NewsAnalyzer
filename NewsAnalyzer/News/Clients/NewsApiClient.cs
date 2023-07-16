@@ -1,4 +1,4 @@
-﻿namespace NewsAnalyzer.Clients
+﻿namespace News.Clients
 {
     /// <summary>
     /// Makes requests to newsapi.org

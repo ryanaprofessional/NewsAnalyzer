@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace NewsAnalyzer.Models.Request
+namespace News.Models.Request
 {
     public class NewsArticleRequest
     {

@@ -1,4 +1,4 @@
-namespace NewsAnalyzer.Models.Other
+namespace News.Models.Other
 {
     public class Article
     {

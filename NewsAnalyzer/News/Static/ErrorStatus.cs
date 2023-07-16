@@ -1,4 +1,4 @@
-namespace NewsAnalyzer.Static
+namespace News.News.Static
 {
     public enum ErrorStatus
     {
@@ -42,6 +42,6 @@ namespace NewsAnalyzer.Static
         LoopDetected = 508,
         NotExtended = 510,
         NetworkAuthenticationRequired = 511,
-        NoError =0
+        NoError = 0
     }
 }

@@ -1,6 +1,6 @@
-using NewsAnalyzer.Services;
-using NewsAnalyzer.Repositories;
-using NewsAnalyzer.Clients;
+using News.Services;
+using News.Repositories;
+using News.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
 

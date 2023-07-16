@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using NewsAnalyzer.Static;
+using News.News.Static;
 
-namespace NewsAnalyzer.Services
+namespace News.Services
 {
     public class ControllerResponseService
     {

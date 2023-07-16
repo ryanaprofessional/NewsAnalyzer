@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using NewsAnalyzer.Models.Request;
-using NewsAnalyzer.Models.Other;
-using NewsAnalyzer.Services;
+using News.Models.Request;
+using News.Models.Other;
+using News.Services;
 
-namespace NewsAnalyzer.Controllers
+namespace NewsControllers
 {
     public class NewsController : Controller
     {

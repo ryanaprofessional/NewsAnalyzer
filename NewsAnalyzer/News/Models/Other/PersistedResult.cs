@@ -1,6 +1,6 @@
-﻿using NewsAnalyzer.Static;
+﻿using News.News.Static;
 
-namespace NewsAnalyzer.Models.Other
+namespace News.Models.Other
 {
     public class PersistedResult
     {

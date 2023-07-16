@@ -1,9 +1,9 @@
-﻿using NewsAnalyzer.Clients;
+﻿using News.Clients;
 using System.Text.Json;
-using NewsAnalyzer.Models.Other;
-using NewsAnalyzer.Static;
+using News.Models.Other;
+using News.News.Static;
 
-namespace NewsAnalyzer.Repositories
+namespace News.Repositories
 {
 
     /// <summary>

@@ -1,9 +1,9 @@
-﻿using NewsAnalyzer.Repositories;
-using NewsAnalyzer.Models.Request;
-using NewsAnalyzer.Static;
-using NewsAnalyzer.Models.Other;
+﻿using News.Repositories;
+using News.Models.Request;
+using News.Models.Other;
+using News.News.Static;
 
-namespace NewsAnalyzer.Services
+namespace News.Services
 {
     /// <summary>
     /// This Service is responsible for creating queries for the news api
