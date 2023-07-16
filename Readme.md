@@ -4,12 +4,12 @@
 ### Setup
   1. Get an api key from NewsApi.org
   2. Get an api key from OpenAi
-  3. Paste this into your user secrets:
-   {
-     "NewsApiKey": "<paste news api key here>",
-     "JsonFilePath": "<paste a directory on your computer here, don't forget to double backslash>",
-     "OpenAiKey": "<paste open ai key here>"
-   }
+  3. Paste this into your user secrets: </br>
+   { </br>
+     "NewsApiKey": "<$Paste Api Key Here>", </br>
+     "JsonFilePath": "<$Paste a directory on your computer here, don't forget to double backslash>", </br>
+     "OpenAiKey": "<$Paste Api Key Here>" </br>
+   } </br>
 
 
 ### WIP
