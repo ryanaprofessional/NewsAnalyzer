@@ -6,10 +6,10 @@ namespace News.Services
     /// <summary>
     /// This service is responsible for communication between the controllers and the persistence layer.
     /// </summary>
-    public class PersistNewsArticleService
+    public class ArticlePersistenceService
     {
         private readonly ArticleRepository _newsArticleRepository;
-        public PersistNewsArticleService(ArticleRepository newsArticleRepository)
+        public ArticlePersistenceService(ArticleRepository newsArticleRepository)
         {
             _newsArticleRepository = newsArticleRepository;
         }

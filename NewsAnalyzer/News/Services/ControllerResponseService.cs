@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using News.News.Static;
+using News.Static;
 
 namespace News.Services
 {

@@ -3,16 +3,16 @@ using News.Models.Request;
 using News.Models.Other;
 using News.Services;
 
-namespace NewsControllers
+namespace NewsController
 {
     public class NewsController : Controller
     {
         private readonly ILogger<NewsController> _logger;
         private readonly QueryNewsApiService _apiQueryService;
         private readonly ControllerResponseService _controllerResponseService;
-        private readonly PersistNewsArticleService _persistNewsArticleService;
+        private readonly ArticlePersistenceService _persistNewsArticleService;
 
-        public NewsController(ILogger<NewsController> logger, QueryNewsApiService apiQueryService, ControllerResponseService controllerResponseService, PersistNewsArticleService persistNewsArticleService)
+        public NewsController(ILogger<NewsController> logger, QueryNewsApiService apiQueryService, ControllerResponseService controllerResponseService, ArticlePersistenceService persistNewsArticleService)
         {
             _logger = logger;
             _apiQueryService = apiQueryService;
@@ -37,7 +37,7 @@ namespace NewsControllers
             PersistedResult persistedResult = await _persistNewsArticleService.PersistNewsArticles(newsArticles);
             if (persistedResult.IsSuccess)
             {
-                return Ok(persistedResult);
+                return Ok(persistedResult.Id);
             }
             else
             {

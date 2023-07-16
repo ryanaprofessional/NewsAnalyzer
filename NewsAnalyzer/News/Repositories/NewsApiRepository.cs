@@ -1,7 +1,7 @@
 ﻿using News.Clients;
 using System.Text.Json;
 using News.Models.Other;
-using News.News.Static;
+using News.Static;
 
 namespace News.Repositories
 {
@@ -42,31 +42,26 @@ namespace News.Repositories
             }
             catch (HttpRequestException ex)
             {
-                newsArticles.Code = ErrorCode.Custom;
                 newsArticles.ErrorStatus = ErrorStatus.BadRequest;
                 newsArticles.Message = internalErrorDefaultMessage + "Failed to complete 3rd party HTTPRequest.  This error can be thrown if there is an issue with the HTTP request, such as network connectivity problems, DNS resolution failures, or server-side error.";
             }
             catch (TaskCanceledException ex)
             {
-                newsArticles.Code = ErrorCode.Custom;
                 newsArticles.ErrorStatus = ErrorStatus.Timeout;
                 newsArticles.Message = internalErrorDefaultMessage + "3rd party HTTP request timed out or was canceled before receiving a response.";
             }
             catch (JsonException ex)
             {
-                newsArticles.Code = ErrorCode.Custom;
                 newsArticles.ErrorStatus = ErrorStatus.UnprocessableEntity;
                 newsArticles.Message = internalErrorDefaultMessage + "Possible malformed JSON or incompatible data types when parsing response from 3rd party.";
             }
             catch (InvalidOperationException ex)
             {
-                newsArticles.Code = ErrorCode.Custom;
                 newsArticles.ErrorStatus = ErrorStatus.NotFound;
                 newsArticles.Message = internalErrorDefaultMessage + "Trouble making valid 3rd party HTTPRequest to retrieve news articles.  Potentially bad URL.";
             }
             catch (Exception ex)
             {
-                newsArticles.Code = ErrorCode.Custom;
                 newsArticles.ErrorStatus = ErrorStatus.InternalServerError;
                 newsArticles.Message = internalErrorDefaultMessage + "Novel error causing breaking problem resulting in failure to retrieve data from 3rd party api.";
             }
@@ -115,19 +110,30 @@ namespace News.Repositories
         /// <returns></returns>
         private string GetErrorMessage(string errorCode, string errorMessage)
         {
-            const string apiMessage = "Issue with 3rd party api.  We are aware of the issue and are addressing";
+            const string authmessage = "authorization with 3rd party api service..";
+            const string apiMessage = "Issue with 3rd party api.  We are aware of the issue and are addressing.  The issue relates to ";
             switch (errorCode)
             {
                 case "apiKeyDisabled":
-                    return apiMessage;
+                    return apiMessage + authmessage;
                 case "apiKeyExhausted":
-                    return apiMessage;
+                    return apiMessage + authmessage;
                 case "apiKeyInvalid":
-                    return apiMessage;
+                    return apiMessage + authmessage;
                 case "apiKeyMissing":
-                    return apiMessage;
+                    return apiMessage + authmessage;
+                case "parameterInvalid":
+                    return apiMessage + "the 3rd party service updating their models before we had a chance to get to it.";
+                case "parametersMissing":
+                    return "Required parameters are missing from the request and it cannot be completed";
+                case "rateLimited":
+                    return "You have been rate limited. Back off for a while before trying the request again";
+                case "sourcesTooMany":
+                    return "You have requested too many sources in a single request. Try splitting the request into 2 smaller requests.";
+                case "sourceDoesNotExist":
+                    return "You have requested a source which does not exist";
                 default:
-                    return "Error querying 3rd party api.  Error message is: " + errorMessage;
+                    return apiMessage + " an unknown/unexpected error";
             }
         }
     }
