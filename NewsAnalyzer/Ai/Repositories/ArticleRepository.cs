@@ -18,14 +18,14 @@ namespace Ai.Repositories
             localPathForNewsArticles = _config.GetValue<string>("JsonFilePath");
         }
 
-        public async Task<PersistedResult> GetNewsArticles(int id)
+        public async Task<PersistedResult<NewsArticles>> GetNewsArticles(int id)
         {
             return ReadFromJsonFile<NewsArticles>(localPathForNewsArticles);
         }
 
-        private PersistedResult ReadFromJsonFile<T>(string filePath)
+        private PersistedResult<T> ReadFromJsonFile<T>(string filePath)
         {
-            PersistedResult retrievalResult = new PersistedResult();
+            PersistedResult<T> retrievalResult = new PersistedResult<T>();
 
             try
             {

@@ -2,9 +2,9 @@
 
 namespace Ai.Models.Other
 {
-    public class PersistedResult : OperationalStaus
+    public class PersistedResult<T> : OperationalStaus
     {
         public int Id { get; set; } = 1;
-        public object Result { get; set; } = 0;
+        public T Result { get; set; }
     }
 }

@@ -1,38 +1,86 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Ai.Models.Other;
 using Ai.Models.Other.News;
 using Ai.Services;
 using Ai.Models.Other.Ai;
+using Ai.Repositories;
 
 namespace Ai.Controllers
 {
     public class AiController : Controller
     {
-        private PersistenceService _persistenceService;
-        private AiQueryService _aiQueryService;
         private ControllerResponseService _controllerResponseService;
+        private OpenAiRepository _openAiRepository;
+        private ArticleRepository _articleRepository;
+        private readonly IConfiguration _config;
 
-        public AiController(PersistenceService persistenceService, AiQueryService aiQueryService, ControllerResponseService controllerResponseService)
+        public AiController(ControllerResponseService controllerResponseService, OpenAiRepository openAiRepository, ArticleRepository articleRepository, IConfiguration config)
         {
-            _persistenceService = persistenceService;
-            _aiQueryService = aiQueryService;
             _controllerResponseService = controllerResponseService;
+            _openAiRepository = openAiRepository;
+            _articleRepository = articleRepository;
+            _config = config;
         }
 
         [HttpGet("/ai/news/{id}", Name = "SummarizeArticles")]
         public async Task<IActionResult> SummarizeArticles(int id)
         {
-            PersistedResult persistRetrieval = await _persistenceService.GetNewsArticles(id);
-            NewsArticles newsArticles = (NewsArticles)persistRetrieval.Result;
-            ChatAnswer summary = await _aiQueryService.ReduceAndSummarizeArticles(newsArticles);
+            var articles = await _articleRepository.GetNewsArticles(id);
+            if (!articles.IsSuccess)
+            {
+                return _controllerResponseService.ErrorResponse(articles.ErrorStatus, articles.Message);
+            }
+
+            var summary = await GenerateSummary(articles.Result);
+
             if (summary.IsSuccess)
             {
                 return Ok(summary.Answer);
             }
             else
             {
-                return _controllerResponseService.ErrorResponse(summary.ErrorStatus, summary.Message);
+                return _controllerResponseService.ErrorResponse(articles.ErrorStatus, articles.Message);
             }
+        }
+
+        private string ReduceNewsArticles(NewsArticles newsArticles)
+        {
+            // This is a temporary solution until we implement paging.
+            string concatenatedOutput = string.Empty;
+            foreach (Article article in newsArticles.Articles)
+            {
+                concatenatedOutput += " --- Title:" + article.Title + " Desc: " + article.Description;
+            }
+            return ShortenString(concatenatedOutput);
+        }
+
+        private string ShortenString(string text)
+        {
+            // This is a temporary solution until we implement paging.
+            int wordCount = text.Split(' ').Length;
+            int charCount = text.Length;
+            double tokensCountWordEst = wordCount / 0.75;
+            double tokensCountCharEst = charCount / 4.0;
+
+            int output = (int)Math.Max(tokensCountWordEst, tokensCountCharEst);
+            int maxLength = Math.Min(output, 4050);
+            string shortenedString = text.Substring(0, maxLength);
+            return shortenedString;
+        }
+        private async Task<ChatAnswer> GenerateSummary(NewsArticles articles)
+        {
+            MessageContent[] messages = new MessageContent[]
+            {
+                new MessageContent { Role = "system", Content = "I will send you a series of news articles and you are to abbreviate them and give me a short summary of what is going on in the form of a paragraph. Do not include the titles, this is supposed to be a collective summary." },
+                new MessageContent { Role = "user", Content = ReduceNewsArticles(articles) }
+            };
+
+            ChatCompletions request = new ChatCompletions
+            {
+                Model = _config.GetValue<string>("ChatModel"),
+                Messages = messages
+            };
+
+            return await _openAiRepository.SummarizeNewsArticles(request);
         }
     }
 }
