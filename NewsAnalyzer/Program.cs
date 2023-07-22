@@ -32,8 +32,6 @@ builder.Services.AddTransient<Ai.Repositories.ArticleRepository>();
 builder.Services.AddTransient<OpenAiRepository>();
 
 // Services
-builder.Services.AddTransient<PersistenceService>();
-builder.Services.AddTransient<AiQueryService>();
 builder.Services.AddTransient<Ai.Services.ControllerResponseService>();
 
 // ----------------------------------------------------------------------------------------------
