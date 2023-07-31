@@ -15,7 +15,6 @@
   <ItemGroup>
     <Folder Include="Ai\Models\Request\" />
     <Folder Include="Ai\Models\Response\" />
-    <Folder Include="News\Interfaces\" />
   </ItemGroup>
 
 </Project>

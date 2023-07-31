@@ -17,12 +17,9 @@ builder.Services.AddTransient<News.Repositories.ArticleRepository>();
 
 
 // Services
-builder.Services.AddTransient<QueryNewsApiService>();
-builder.Services.AddTransient<ArticlePersistenceService>();
 builder.Services.AddTransient<News.Services.ControllerResponseService>();
 
 // ----------------------------------------------------------------------------------------------
-
 // **Ai Namespace**
 // Clients
 builder.Services.AddTransient<OpenAiClient>();
