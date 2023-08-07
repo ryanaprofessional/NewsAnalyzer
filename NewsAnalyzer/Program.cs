@@ -1,7 +1,5 @@
-using News.Services;
 using News.Repositories;
 using News.Clients;
-using Ai.Services;
 using Ai.Clients;
 using Ai.Repositories;
 
@@ -15,10 +13,6 @@ builder.Services.AddTransient<NewsApiClient>();
 builder.Services.AddTransient<NewsApiRepository>();
 builder.Services.AddTransient<News.Repositories.ArticleRepository>();
 
-
-// Services
-builder.Services.AddTransient<News.Services.ControllerResponseService>();
-
 // ----------------------------------------------------------------------------------------------
 // **Ai Namespace**
 // Clients
@@ -27,9 +21,6 @@ builder.Services.AddTransient<OpenAiClient>();
 // Repositories
 builder.Services.AddTransient<Ai.Repositories.ArticleRepository>();
 builder.Services.AddTransient<OpenAiRepository>();
-
-// Services
-builder.Services.AddTransient<Ai.Services.ControllerResponseService>();
 
 // ----------------------------------------------------------------------------------------------
 

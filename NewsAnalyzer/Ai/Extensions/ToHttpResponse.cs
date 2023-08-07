@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Ai.Static;
 
-namespace Ai.Services
+namespace Ai.Extensions
 {
-    public class ControllerResponseService
+    public static class ErrorStatusExtensions
     {
-        public ObjectResult ErrorResponse(ErrorStatus errStatus, string message)
+        public static ObjectResult ToHttpResponse(this ErrorStatus errStatus, string message)
         {
             const string unknownMsg = "An unknown error occured";
             message = message == null || errStatus == ErrorStatus.NoError ? unknownMsg : message;

@@ -1,21 +1,19 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Ai.Models.Other.News;
-using Ai.Services;
 using Ai.Models.Other.Ai;
 using Ai.Repositories;
+using Ai.Extensions;
 
 namespace Ai.Controllers
 {
     public class AiController : Controller
     {
-        private ControllerResponseService _controllerResponseService;
         private OpenAiRepository _openAiRepository;
         private ArticleRepository _articleRepository;
         private readonly IConfiguration _config;
 
-        public AiController(ControllerResponseService controllerResponseService, OpenAiRepository openAiRepository, ArticleRepository articleRepository, IConfiguration config)
+        public AiController(OpenAiRepository openAiRepository, ArticleRepository articleRepository, IConfiguration config)
         {
-            _controllerResponseService = controllerResponseService;
             _openAiRepository = openAiRepository;
             _articleRepository = articleRepository;
             _config = config;
@@ -27,7 +25,7 @@ namespace Ai.Controllers
             var articles = await _articleRepository.GetNewsArticles(id);
             if (!articles.IsSuccess)
             {
-                return _controllerResponseService.ErrorResponse(articles.ErrorStatus, articles.Message);
+                return articles.ErrorStatus.ToHttpResponse(articles.Message);
             }
 
             var summary = await GenerateSummary(articles.Result);
@@ -38,7 +36,7 @@ namespace Ai.Controllers
             }
             else
             {
-                return _controllerResponseService.ErrorResponse(articles.ErrorStatus, articles.Message);
+                return summary.ErrorStatus.ToHttpResponse(articles.Message);
             }
         }
 

@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using News.Models.Request;
 using News.Models.Other;
-using News.Services;
 using News.Repositories;
 using News.Static;
+using News.Extensions;
 
 namespace NewsController
 {
@@ -11,14 +11,12 @@ namespace NewsController
     {
         private readonly ILogger<NewsController> _logger;
         private readonly NewsApiRepository _newsApiRepository;
-        private readonly ControllerResponseService _controllerResponseService;
         private readonly ArticleRepository _articleRepository;
 
-        public NewsController(ILogger<NewsController> logger, NewsApiRepository newsApiRepository, ControllerResponseService controllerResponseService, ArticleRepository articleRepository)
+        public NewsController(ILogger<NewsController> logger, NewsApiRepository newsApiRepository, ArticleRepository articleRepository)
         {
             _logger = logger;
             _newsApiRepository = newsApiRepository;
-            _controllerResponseService = controllerResponseService;
             _articleRepository = articleRepository;
         }
 
@@ -38,13 +36,13 @@ namespace NewsController
             }
             catch
             {
-                return _controllerResponseService.ErrorResponse(ErrorStatus.InternalServerError, "Failed to create query string for news articles.");
+                return StatusCode(500, "Failed to create query string for news articles.");
             }
 
             NewsArticles newsArticles = await _newsApiRepository.GetNewsArticles(query);
             if (!newsArticles.IsSuccess)
             {
-                return _controllerResponseService.ErrorResponse(newsArticles.ErrorStatus, newsArticles.Message);
+                return newsArticles.ErrorStatus.ToHttpResponse(newsArticles.Message);
             }
 
             PersistedResult persistedResult = await _articleRepository.PersistNewsArticles(newsArticles);
@@ -54,7 +52,7 @@ namespace NewsController
             }
             else
             {
-                return _controllerResponseService.ErrorResponse(persistedResult.ErrorStatus, persistedResult.Message);
+                return persistedResult.ErrorStatus.ToHttpResponse(newsArticles.Message);
             }
         }
 
