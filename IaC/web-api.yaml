@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  EcrRepositoryName:
+    Type: String
+    Description: "Name of the ecr repository."
+    Default: "newsanalyzer-ecr-repo"
+  TaskDefinitionName:
+    Type: String
+    Description: "Name of Task Definition Family"
+    Default: "newsanalyzer-task-definition"
+  ContainerName:
+    Type: String
+    Description: "Name of ECS Container"
+    Default: "newsanalyzer-container"
+  ClusterName:
+    Type: String
+    Description: "Name of ECS Cluster"
+    Default: "newsanalyzer-cluster"
+  SubnetId:
+    Type: String
+    Description: "Subnet Id for ECS Service Deployment"
+  SecurityGroupId:
+    Type: String
+    Description: "Security Group Id for ECS Service"
+    
+Resources:
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: !Ref ${EcrRepositoryName}
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ClusterName
+
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref ${TaskDefinitionName}
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: !Ref ${ContainerName}
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepository}:latest"
+          Memory: 512
+          PortMappings:
+            - ContainerPort: 80
+            
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ${CluserName}
+      LaunchType: FARGATE
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: 1
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: 
+            - !Ref ${SubnetId}
+          SecurityGroups:
+            - !Ref ${SecurityGroupId}

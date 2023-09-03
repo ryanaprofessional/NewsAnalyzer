@@ -1,0 +1,345 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Vpc with two public and two private subnets in different availability zones.  
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Project Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+          - ResourcePrefix
+      - Label:
+          default: "Vpc Configuration"
+        Parameters:
+          - VpcCidrBlock    
+      - Label:
+          default: "Private Subnet Configuration"
+        Parameters:
+          - PrivateSubnet1CidrBlock          
+          - PrivateSubnet2CidrBlock
+      - Label:
+          default: "Public Subnet Configuration"
+        Parameters:
+          - PublicSubnet1CidrBlock          
+          - PublicSubnet2CidrBlock
+      - Label:
+          default: "Availability Zones"
+        Parameters:
+          - Az1
+          - Az2   
+      - Label:
+          default: "SG Egress Configuration"
+        Parameters:       
+          - VpcSecurityGroupEgressIpProtocol        
+          - VpcSecurityGroupEgressFromPort
+          - VpcSecurityGroupEgressToPort
+          - VpcSecurityGroupEgressCidrBlock          
+      - Label:
+          default: "SG Ingress Configuration"
+        Parameters:
+          - VpcSecurityGroupIngressIpProtocol
+          - VpcSecurityGroupIngressFromPort
+          - VpcSecurityGroupIngressToPort 
+          - VpcSecurityGroupIngressCidrBlock 
+
+Parameters:
+  TagKey:
+    Type: String
+    MinLength: 2
+    MaxLength: 10
+    Description: "Tag Key associated with all resources in this template.  Between 2 and 10 characters long."
+    Default: "project"
+  TagValue:
+    Type: String
+    MinLength: 2
+    MaxLength: 25
+    Description: "The value associated with the above key"
+    Default: "projectName"
+  ResourcePrefix:
+    Type: String
+    MinLength: 2
+    MaxLength: 5
+    Description: "Prefix that will come before all the names of the resources in this template. Between 2 and 5 characters long."
+    Default: "test"
+
+
+  VpcCidrBlock:
+    Type: String
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 10.0.0.0/23
+  PrivateSubnet1CidrBlock:
+    Type: String
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 10.0.0.0/25 
+  PrivateSubnet2CidrBlock:
+    Type: String
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 10.0.0.128/25  
+  PublicSubnet1CidrBlock:
+    Type: String
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 10.0.1.0/25    
+  PublicSubnet2CidrBlock:
+    Type: String
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 10.0.1.128/25     
+  
+  Az1:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1a
+  Az2:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: us-east-1b
+
+  VpcSecurityGroupIngressIpProtocol:
+    Type: String
+    Description: "Ip Protocol of security Group.  -1 is all"
+    Default: "-1"    
+  VpcSecurityGroupIngressFromPort:
+    Type: String
+    Description: "Lower Bound of allowed incoming ports"
+    Default: "80"
+  VpcSecurityGroupIngressToPort:
+    Type: String
+    Description: "Upper Bound of allowed incoming ports"    
+    Default: "80"
+  VpcSecurityGroupIngressCidrBlock:
+    Type: String
+    Description: "CidrBlock for Inbound Connections on Port 80"
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 0.0.0.0/0
+  VpcSecurityGroupEgressIpProtocol:
+    Type: String
+    Description: "Ip Protocol of security Group.  -1 is all"
+    Default: "-1"
+  VpcSecurityGroupEgressFromPort:
+    Type: String
+    Description: "Lower Bound of allowed outgoing ports.  -1 is all"
+    Default: "-1"
+  VpcSecurityGroupEgressToPort:
+    Type: String
+    Description: "Upper bound of allowed outgoing ports.  -1 is all"
+    Default: "-1"
+  VpcSecurityGroupEgressCidrBlock:
+    Type: String
+    Description: "CidrBlock for Inbound Connections on Port 80"
+    AllowedPattern: ^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$
+    Default: 0.0.0.0/0
+
+Resources:  
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub ${VpcCidrBlock}
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-vpc"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}
+
+  EipForNatGateway1:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+      - Key: name
+        Value: !Sub "${ResourcePrefix}-eip-natgateway1-private-subnet1"
+      - Key: !Sub ${TagKey}
+        Value: !Sub ${TagValue}
+
+  NatGateway:
+    Type: 'AWS::EC2::NatGateway'
+    DependsOn: [ "GatewayAttachment" ]
+    Properties:
+      AllocationId: !GetAtt EipForNatGateway1.AllocationId 
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-nat-gateway-private-subnet1"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}
+
+  PrivateSubnet1RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-private-subnet1-routetable"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}
+
+  PrivateSubnet1Route:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateSubnet1RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PrivateSubnet1RouteTable
+      SubnetId: !Ref PrivateSubnet1   
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref Az1
+      VpcId: !Ref Vpc
+      CidrBlock: !Sub ${PrivateSubnet1CidrBlock}
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-private-subnet-1"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}
+  
+  EipForNatGateway2:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-eip-natgateway2-private-subnet2"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  NatGateway2:
+    Type: 'AWS::EC2::NatGateway'
+    DependsOn: [ "GatewayAttachment" ]
+    Properties:
+      AllocationId: !GetAtt EipForNatGateway2.AllocationId
+      SubnetId: !Ref PublicSubnet2
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-natgateway2-private-subnet2"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref Az2    
+      VpcId: !Ref Vpc
+      CidrBlock: !Sub ${PrivateSubnet2CidrBlock}
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-private-subnet2"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  PrivateSubnet2RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-private-subnet2-route-table"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  PrivateSubnet2Route:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PrivateSubnet2RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2         
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PrivateSubnet2RouteTable
+      SubnetId: !Ref PrivateSubnet2        
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-internet-gateway"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}          
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc           
+
+  PublicSubnetRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-public-subnet-route-table"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  PublicSubnetRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway         
+
+  PublicSubnet1RouteTableAssociations:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      SubnetId: !Ref PublicSubnet1     
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref Az1
+      VpcId: !Ref Vpc
+      CidrBlock: !Sub ${PublicSubnet1CidrBlock}
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-public-subnet1"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  PublicSubnet2RouteTableAssociation:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref PublicSubnetRouteTable
+      SubnetId: !Ref PublicSubnet2        
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref Az2
+      VpcId: !Ref Vpc
+      CidrBlock: !Sub ${PublicSubnet2CidrBlock}
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-public-subnet2"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}      
+
+  VpcSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ResourcePrefix} vpc Security Group"
+      GroupDescription: "allows access in and out of vpc"
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: !Ref VpcSecurityGroupEgressIpProtocol
+          FromPort: !Ref VpcSecurityGroupIngressFromPort
+          ToPort: !Ref VpcSecurityGroupIngressToPort
+          CidrIp: !Ref VpcSecurityGroupIngressCidrBlock
+      SecurityGroupEgress:
+        - IpProtocol: !Ref VpcSecurityGroupEgressIpProtocol
+          FromPort: !Ref VpcSecurityGroupEgressFromPort
+          ToPort: !Ref VpcSecurityGroupEgressToPort
+          CidrIp: !Ref VpcSecurityGroupEgressCidrBlock
+      Tags:
+        - Key: name
+          Value: !Sub "${ResourcePrefix}-vpc-sg"
+        - Key: !Sub ${TagKey}
+          Value: !Sub ${TagValue}                
