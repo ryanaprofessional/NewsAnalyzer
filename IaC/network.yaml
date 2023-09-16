@@ -343,3 +343,10 @@ Resources:
           Value: !Sub "${ResourcePrefix}-vpc-sg"
         - Key: !Sub ${TagKey}
           Value: !Sub ${TagValue}                
+
+Outputs:
+  VpcId:
+    Description: ID of vpc which contains two prive and two public subnets in diff az
+    Value: !GetAtt Vpc.VpcId
+    Export: 
+      Name: !Sub "${ResourcePrefix}-vpc-id"
