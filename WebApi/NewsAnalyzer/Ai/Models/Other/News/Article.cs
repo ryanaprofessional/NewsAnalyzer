@@ -1,14 +1,22 @@
+using Amazon.DynamoDBv2.DataModel;
+
 namespace Ai.Models.Other.News
 {
     public class Article
     {
-        public ArticleSource Source { get; set; }
-        public string Author { get; set; }
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public string Url { get; set; }
-        public string UrlToImage { get; set; }
-        public string PublishedAt { get; set; }
-        public string Content { get; set; }
+        [DynamoDBProperty("author")]
+        public string Author { get; set; } = string.Empty;
+        [DynamoDBProperty("title")]
+        public string Title { get; set; } = string.Empty;
+        [DynamoDBProperty("description")]
+        public string Description { get; set; } = string.Empty;
+        [DynamoDBProperty("url")]
+        public string Url { get; set; } = string.Empty;
+        [DynamoDBProperty("urlToImage")]
+        public string UrlToImage { get; set; } = string.Empty;
+        [DynamoDBProperty("publishedAt")]
+        public string PublishedAt { get; set; } = string.Empty;
+        [DynamoDBProperty("content")]
+        public string Content { get; set; } = string.Empty;
     }
 }

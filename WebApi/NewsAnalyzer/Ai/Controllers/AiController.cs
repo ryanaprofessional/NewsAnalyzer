@@ -20,15 +20,15 @@ namespace Ai.Controllers
         }
 
         [HttpGet("/ai/news/{id}", Name = "SummarizeArticles")]
-        public async Task<IActionResult> SummarizeArticles(int id)
+        public async Task<IActionResult> SummarizeArticles(string id)
         {
-            var articles = await _articleRepository.GetNewsArticles(id);
+            var articles = await _articleRepository.GetNewsArticlesByid(id);
             if (!articles.IsSuccess)
             {
                 return articles.ErrorStatus.ToHttpResponse(articles.Message);
             }
 
-            var summary = await GenerateSummary(articles.Result);
+            var summary = await GenerateSummary(articles);
 
             if (summary.IsSuccess)
             {

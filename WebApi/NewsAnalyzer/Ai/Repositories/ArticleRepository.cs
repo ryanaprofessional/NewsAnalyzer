@@ -1,7 +1,6 @@
-﻿using System.Text.Json;
-using Ai.Models.Other;
-using Ai.Models.Other.News;
+﻿using Ai.Models.Other.News;
 using Ai.Static;
+using Amazon.DynamoDBv2.DataModel;
 
 namespace Ai.Repositories
 {
@@ -12,55 +11,42 @@ namespace Ai.Repositories
     {
         private readonly string localPathForNewsArticles;
         private readonly IConfiguration _config;
-        public ArticleRepository(IConfiguration config)
+        private readonly IDynamoDBContext _dynamoDbContext;
+        private readonly ILogger _logger;
+        public ArticleRepository(IConfiguration config, IDynamoDBContext dynamoDbContext, ILogger<ArticleRepository> logger)
         {
             _config = config;
             localPathForNewsArticles = _config.GetValue<string>("JsonFilePath");
+            _dynamoDbContext = dynamoDbContext;
+            _logger = logger;
         }
 
-        public async Task<PersistedResult<NewsArticles>> GetNewsArticles(int id)
+        public async Task<NewsArticles> GetNewsArticlesByid(string id)
         {
-            return ReadFromJsonFile<NewsArticles>(localPathForNewsArticles);
-        }
-
-        private PersistedResult<T> ReadFromJsonFile<T>(string filePath)
-        {
-            PersistedResult<T> retrievalResult = new PersistedResult<T>();
-
+            var articles = new NewsArticles();
             try
             {
-                string jsonString = File.ReadAllText(filePath);
-                retrievalResult.Result = JsonSerializer.Deserialize<T>(jsonString);
-                retrievalResult.IsSuccess = true;
-                return retrievalResult;
+                articles = await _dynamoDbContext.LoadAsync<NewsArticles>(id);
+                if (articles == null)
+                {
+                    throw new FileNotFoundException();
+                }
+                articles.IsSuccess = true;
             }
-            catch (JsonException ex)
-            {
-                retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
-                retrievalResult.Message = "Error occurred during JSON serialization";
-            }
-            catch (IOException ex)
-            {
-                retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
-                retrievalResult.Message = "IO error occurred while writing JSON data";
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
-                retrievalResult.Message = "Access denied while writing JSON data";
-            }
-            catch (ArgumentException ex)
-            {
-                retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
-                retrievalResult.Message = "Invalid file path";
+            catch(FileNotFoundException ex)
+            { 
+                _logger.LogError("DynamoDb could not find the id: " + id);
+                articles.ErrorStatus = ErrorStatus.NotFound;
+                articles.Message = "No items found with id of: " + id;
             }
             catch (Exception ex)
             {
-                retrievalResult.ErrorStatus = ErrorStatus.InternalServerError;
-                retrievalResult.Message = "Unhandled error occurred";
+                _logger.LogError(ex.Message);
+                articles.ErrorStatus = ErrorStatus.InternalServerError;
+                articles.Message = "Unhandled error occurred";
             }
 
-            return retrievalResult;
+            return articles;
         }
     }
 }
