@@ -2,6 +2,7 @@ using News.Repositories;
 using News.Clients;
 using Ai.Clients;
 using Ai.Repositories;
+using Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 // ----------------------------------------------------------------------------------------------
@@ -25,9 +26,12 @@ builder.Services.AddTransient<OpenAiRepository>();
 // ----------------------------------------------------------------------------------------------
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// -----------------------------------------------------------------------------------------------
+// AWS Config
+builder.UseDynamoDb();
 
 var app = builder.Build();
 
