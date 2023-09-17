@@ -44,11 +44,11 @@ namespace NewsController
             {
                 return newsArticles.ErrorStatus.ToHttpResponse(newsArticles.Message);
             }
-
+            newsArticles.OriginatingRequest = parameters;
             PersistedResult persistedResult = await _articleRepository.PersistNewsArticles(newsArticles);
             if (persistedResult.IsSuccess)
             {
-                return Ok(persistedResult.Id);
+                return Ok(persistedResult);
             }
             else
             {
