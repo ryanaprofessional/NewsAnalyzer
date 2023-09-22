@@ -1,22 +1,20 @@
-﻿using System.Net.Http.Headers;
-using System.Text.Json;
-using System.Text;
-using Ai.Models.Other.Ai;
+﻿using Ai.Models.Other.Ai;
 using Ai.Static;
 using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 
 namespace Ai.Clients
 {
     public class OpenAiClient
     {
         private HttpClient _httpClient = new HttpClient();
-        private readonly IConfiguration _config;
         private readonly string baseUrl = "https://api.openai.com/v1/";
 
-        public OpenAiClient(IConfiguration config)
+        public OpenAiClient()
         {
-            _config = config;
-            string apiKey = _config.GetValue<string>("OpenAiKey");
+            string apiKey = Environment.GetEnvironmentVariable("OpenAiKey");
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         }
 
@@ -50,27 +48,27 @@ namespace Ai.Clients
                     completionResponse.Message = GetErrorMessage(completionsResponse.StatusCode, errMessage);
                 }
             }
-            catch (HttpRequestException ex)
+            catch (HttpRequestException)
             {
                 completionResponse.ErrorStatus = ErrorStatus.BadRequest;
                 completionResponse.Message = internalErrorDefaultMessage + "Failed to complete 3rd party HTTPRequest.  This error can be thrown if there is an issue with the HTTP request, such as network connectivity problems, DNS resolution failures, or server-side error.";
             }
-            catch (TaskCanceledException ex)
+            catch (TaskCanceledException)
             {
                 completionResponse.ErrorStatus = ErrorStatus.Timeout;
                 completionResponse.Message = internalErrorDefaultMessage + "3rd party HTTP request timed out or was canceled before receiving a response.";
             }
-            catch (JsonException ex)
+            catch (JsonException)
             {
                 completionResponse.ErrorStatus = ErrorStatus.UnprocessableEntity;
                 completionResponse.Message = internalErrorDefaultMessage + "Possible malformed JSON or incompatible data types when parsing response from 3rd party.";
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
                 completionResponse.ErrorStatus = ErrorStatus.NotFound;
                 completionResponse.Message = internalErrorDefaultMessage + "Trouble making valid 3rd party HTTPRequest to retrieve news articles.  Potentially bad URL.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 completionResponse.ErrorStatus = ErrorStatus.InternalServerError;
                 completionResponse.Message = internalErrorDefaultMessage + "Novel error causing breaking problem resulting in failure to retrieve data from 3rd party api.";

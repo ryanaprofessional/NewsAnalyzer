@@ -12,7 +12,7 @@ namespace News.Repositories
         private readonly IDynamoDBContext _dynamoDbContext;
         private readonly ILogger<ArticleRepository> _logger;
 
-        public ArticleRepository(IConfiguration config, IDynamoDBContext dynamoDbContext, ILogger<ArticleRepository> logger)
+        public ArticleRepository(IDynamoDBContext dynamoDbContext, ILogger<ArticleRepository> logger)
         {
             _dynamoDbContext = dynamoDbContext;
             _logger = logger;
@@ -23,8 +23,8 @@ namespace News.Repositories
             var persisted = new PersistedResult();
             try
             {
-                var newId =  await GetUniqueGuidForNewsArticle();
-                if(newId == null)
+                var newId = await GetUniqueGuidForNewsArticle();
+                if (newId == null)
                 {
                     persisted.ErrorStatus = ErrorStatus.InternalServerError;
                     persisted.Message = "Unable to assign key, item not persisted.";
@@ -37,7 +37,7 @@ namespace News.Repositories
                 }
                 persisted.Id = newId;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex.ToString());
                 persisted.Id = null;
@@ -60,7 +60,7 @@ namespace News.Repositories
             {
                 var StopTime = System.DateTime.Now.AddMinutes(2);
 
-                while(System.DateTime.Now < StopTime)
+                while (System.DateTime.Now < StopTime)
                 {
                     string tempId = Guid.NewGuid().ToString();
                     var newsArticle = await _dynamoDbContext.LoadAsync<NewsArticles>(tempId);
@@ -72,7 +72,7 @@ namespace News.Repositories
                     await Task.Delay(TimeSpan.FromSeconds(2));
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 _logger.LogError(ex.ToString());
             }

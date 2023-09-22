@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using News.Models.Request;
-using News.Models.Other;
-using News.Repositories;
-using News.Static;
 using News.Extensions;
+using News.Models.Other;
+using News.Models.Request;
+using News.Repositories;
 
 namespace NewsController
 {

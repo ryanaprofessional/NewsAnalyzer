@@ -9,14 +9,11 @@ namespace Ai.Repositories
     /// </summary>
     public class ArticleRepository
     {
-        private readonly string localPathForNewsArticles;
-        private readonly IConfiguration _config;
         private readonly IDynamoDBContext _dynamoDbContext;
         private readonly ILogger _logger;
-        public ArticleRepository(IConfiguration config, IDynamoDBContext dynamoDbContext, ILogger<ArticleRepository> logger)
+
+        public ArticleRepository(IDynamoDBContext dynamoDbContext, ILogger<ArticleRepository> logger)
         {
-            _config = config;
-            localPathForNewsArticles = _config.GetValue<string>("JsonFilePath");
             _dynamoDbContext = dynamoDbContext;
             _logger = logger;
         }
@@ -33,8 +30,8 @@ namespace Ai.Repositories
                 }
                 articles.IsSuccess = true;
             }
-            catch(FileNotFoundException ex)
-            { 
+            catch (FileNotFoundException)
+            {
                 _logger.LogError("DynamoDb could not find the id: " + id);
                 articles.ErrorStatus = ErrorStatus.NotFound;
                 articles.Message = "No items found with id of: " + id;
