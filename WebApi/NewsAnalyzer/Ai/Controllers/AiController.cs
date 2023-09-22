@@ -1,8 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Ai.Models.Other.News;
+﻿using Ai.Extensions;
 using Ai.Models.Other.Ai;
+using Ai.Models.Other.News;
 using Ai.Repositories;
-using Ai.Extensions;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Ai.Controllers
 {
@@ -10,13 +10,11 @@ namespace Ai.Controllers
     {
         private OpenAiRepository _openAiRepository;
         private ArticleRepository _articleRepository;
-        private readonly IConfiguration _config;
 
-        public AiController(OpenAiRepository openAiRepository, ArticleRepository articleRepository, IConfiguration config)
+        public AiController(OpenAiRepository openAiRepository, ArticleRepository articleRepository)
         {
             _openAiRepository = openAiRepository;
             _articleRepository = articleRepository;
-            _config = config;
         }
 
         [HttpGet("/ai/news/{id}", Name = "SummarizeArticles")]
@@ -74,7 +72,7 @@ namespace Ai.Controllers
 
             ChatCompletions request = new ChatCompletions
             {
-                Model = _config.GetValue<string>("ChatModel"),
+                Model = Environment.GetEnvironmentVariable("ChatModel") ?? "gpt - 3.5 - turbo",
                 Messages = messages
             };
 

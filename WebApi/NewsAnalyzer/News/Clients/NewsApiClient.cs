@@ -1,6 +1,6 @@
-﻿using System.Text.Json;
-using News.Models.Other;
+﻿using News.Models.Other;
 using News.Static;
+using System.Text.Json;
 
 namespace News.Clients
 {
@@ -10,13 +10,11 @@ namespace News.Clients
     public class NewsApiClient
     {
         private HttpClient _httpClient = new HttpClient();
-        private readonly IConfiguration _config;
         private readonly string baseUrl = "https://newsapi.org/v2/";
-        public NewsApiClient(IConfiguration config)
+        public NewsApiClient()
         {
-            _config = config;
             _httpClient.DefaultRequestHeaders.Add("user-agent", "NewsAPI.Net");
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", _config.GetValue<string>("NewsApiKey"));
+            _httpClient.DefaultRequestHeaders.Add("x-api-key", Environment.GetEnvironmentVariable("NewsApiKey"));
         }
 
         /// <summary>
@@ -42,27 +40,27 @@ namespace News.Clients
                     newsArticles.Message = GetErrorMessage(newsArticles.Code, newsArticles.Message);
                 }
             }
-            catch (HttpRequestException ex)
+            catch (HttpRequestException)
             {
                 newsArticles.ErrorStatus = ErrorStatus.BadRequest;
                 newsArticles.Message = internalErrorDefaultMessage + "Failed to complete 3rd party HTTPRequest.  This error can be thrown if there is an issue with the HTTP request, such as network connectivity problems, DNS resolution failures, or server-side error.";
             }
-            catch (TaskCanceledException ex)
+            catch (TaskCanceledException)
             {
                 newsArticles.ErrorStatus = ErrorStatus.Timeout;
                 newsArticles.Message = internalErrorDefaultMessage + "3rd party HTTP request timed out or was canceled before receiving a response.";
             }
-            catch (JsonException ex)
+            catch (JsonException)
             {
                 newsArticles.ErrorStatus = ErrorStatus.UnprocessableEntity;
                 newsArticles.Message = internalErrorDefaultMessage + "Possible malformed JSON or incompatible data types when parsing response from 3rd party.";
             }
-            catch (InvalidOperationException ex)
+            catch (InvalidOperationException)
             {
                 newsArticles.ErrorStatus = ErrorStatus.NotFound;
                 newsArticles.Message = internalErrorDefaultMessage + "Trouble making valid 3rd party HTTPRequest to retrieve news articles.  Potentially bad URL.";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 newsArticles.ErrorStatus = ErrorStatus.InternalServerError;
                 newsArticles.Message = internalErrorDefaultMessage + "Novel error causing breaking problem resulting in failure to retrieve data from 3rd party api.";
