@@ -28,6 +28,7 @@ builder.Services.AddTransient<OpenAiRepository>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 
 // -----------------------------------------------------------------------------------------------
 // AWS Config
@@ -47,5 +48,6 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
