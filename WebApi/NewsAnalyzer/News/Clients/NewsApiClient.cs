@@ -11,10 +11,13 @@ namespace News.Clients
     {
         private HttpClient _httpClient = new HttpClient();
         private readonly string baseUrl = "https://newsapi.org/v2/";
-        public NewsApiClient()
+        private readonly ILogger<NewsApiClient> _logger;
+
+        public NewsApiClient(ILogger<NewsApiClient> logger)
         {
             _httpClient.DefaultRequestHeaders.Add("user-agent", "NewsAPI.Net");
             _httpClient.DefaultRequestHeaders.Add("x-api-key", Environment.GetEnvironmentVariable("NewsApiKey"));
+            _logger = logger;
         }
 
         /// <summary>
@@ -36,6 +39,8 @@ namespace News.Clients
                 newsArticles.IsSuccess = newsArticlesResponse.IsSuccessStatusCode;
                 if (!newsArticles.IsSuccess)
                 {
+                    _logger.LogError("Unable to retrieve from news api");
+                    _logger.LogError($"Error Code: {newsArticles.Code} --- Error Message: {newsArticles.Message}");
                     newsArticles.ErrorStatus = GetErrorStatus(newsArticles.Code);
                     newsArticles.Message = GetErrorMessage(newsArticles.Code, newsArticles.Message);
                 }
