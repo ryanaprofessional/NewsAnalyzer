@@ -33,8 +33,9 @@ namespace NewsController
             {
                 query = BuildNewsApiQuery(parameters);
             }
-            catch
+            catch(Exception ex)
             {
+                _logger.LogError(ex.ToString());
                 return StatusCode(500, "Failed to create query string for news articles.");
             }
 
