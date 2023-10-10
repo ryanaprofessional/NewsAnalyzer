@@ -41,6 +41,7 @@ namespace News.Clients
                 {
                     _logger.LogError("Unable to retrieve from news api");
                     _logger.LogError($"Error Code: {newsArticles.Code} --- Error Message: {newsArticles.Message}");
+                    _logger.LogError(Environment.GetEnvironmentVariable("NewsApiKey"));
                     newsArticles.ErrorStatus = GetErrorStatus(newsArticles.Code);
                     newsArticles.Message = GetErrorMessage(newsArticles.Code, newsArticles.Message);
                 }
