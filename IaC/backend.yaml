@@ -1,0 +1,520 @@
+AWSTemplateFormatVersion : '2010-09-09'
+Description: Assembles necessary infrastructure for deploying a dotnet backend from a GITHUB repo to ECS Fargate.
+
+# Before deploying this template, setup your connection to github:
+# https://docs.aws.amazon.com/codepipeline/latest/userguide/connections-github.html
+# After your first deployment, open up the pipeline source in console, and follow the wizard for connecting github
+
+# If you want to trigger by specific directory you have to implement github actions
+# https://github.com/marketplace/actions/aws-codepipeline-trigger
+# https://github.com/MarceloPrado/has-changed-path
+
+## Todo:
+# Github token auto connect
+# Load balancer switch from 404 to 200
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Project Configuration"
+        Parameters:
+          - TagKey
+          - TagValue
+          - ResourcePrefix
+      - Label:
+          default: "Github Repository Configuration"
+        Parameters:
+          - GithubOAuthToken
+          - GithubOwner
+          - GithubRepo
+          - GithubBranch
+      - Label:
+          default: "Build Configuration"
+        Parameters:
+          - DockerPath
+          - BuildPath
+      - Label:
+          default: "Container Configuration"
+        Parameters:
+          - HealthCheckPath 
+
+Parameters:
+  TagKey:
+    Type: String
+    MinLength: 2
+    MaxLength: 10
+    Description: "Tag Key associated with all resources in this template.  Between 2 and 10 characters long."
+    Default: "project"
+  TagValue:
+    Type: String
+    MinLength: 2
+    MaxLength: 25
+    Description: "The value associated with the above key"
+    Default: "projectName"
+  ResourcePrefix:
+    Type: String
+    MinLength: 2
+    MaxLength: 5
+    Description: "Prefix that will come before all the names of the resources in this template. Between 2 and 5 characters long."
+    Default: "test"
+
+  GitHubOAuthToken:
+    Type: String
+    NoEcho: true
+    Default: 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 #Remove
+  GitHubOwner:
+    Type: String
+    AllowedPattern: "[A-Za-z0-9-]+"
+    Default: ryanaprofessional # Remove 
+  GitHubRepo:
+    Type: String
+    AllowedPattern: "[A-Za-z0-9-]+"
+    Default: NewsAnalyzer
+  GitHubBranch:
+    Type: String
+    AllowedPattern: "[A-Za-z0-9-]+"  
+    Default: main
+
+  DockerPath:
+    Type: String
+    Description: Location of the docker file.  Do not include / prefix or suffix
+    Default: WebApi/NewsAnalyzer/bin/Debug/net6.0 #Remove
+  BuildPath:
+    Type: String
+    Description: Location of the csproj file.  Do not include / prefix or suffix
+    Default: WebApi/NewsAnalyzer  #Remove 
+
+  HealthCheckPath:
+    Type: String
+    Description: Path of health check endpoint. Do not include the leading /.
+    Default: "health" #Remove
+  Secret1:
+    Type: String
+    Description: No Description
+    Default: "arn:aws:secretsmanager:us-east-1:820580980865:secret:OpenAiKey-I4ppXh" #Remove
+  Secret2:
+    Type: String
+    Description: No Description.
+    Default: "arn:aws:secretsmanager:us-east-1:820580980865:secret:NewsApiKey-5hiyjj" #Remove    
+
+Mappings:
+  CodeBuildImages:
+    DotNet:
+      ImageName: aws/codebuild/standard:7.0
+
+Resources:
+  ArtifactStore:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: false
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-ArtifactStoreBucket            
+        - Key: Application
+          Value: !Ref 'AWS::StackName'       
+
+## Load Balancer
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Subnets:
+      - Fn::ImportValue: !Sub "${ResourcePrefix}-public-subnet1-id"
+      - Fn::ImportValue: !Sub "${ResourcePrefix}-public-subnet2-id"
+      SecurityGroups:
+      - !Ref LoadBalancerSG
+      Type: application
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-LoadBalancer          
+        - Key: Application
+          Value: !Ref 'AWS::StackName'
+  LoadBalancerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip # Needed for Fargate
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 45
+      HealthCheckPath: !Sub "/${HealthCheckPath}"
+      Matcher: 
+        HttpCode: 404 # This needs to be changed, we'll start as 404 until deployed and healthy
+      HealthyThresholdCount: 2
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-LoadBalancerTargetGroup        
+        - Key: Application
+          Value: !Ref 'AWS::StackName'      
+      VpcId: !ImportValue
+        'Fn::Sub': "${ResourcePrefix}-vpc-id"
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP    
+
+## IAM Roles
+  # CodeBuild
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - EIAMPolicyWildcardResource
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+              - Resource: !Sub arn:${AWS::Partition}:s3:::${ArtifactStore}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+              - Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ImageRepository}
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+
+  # CodePipeline
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # Allow access to CodeCommit
+              - Resource: !Sub arn:${AWS::Partition}:s3:::${ArtifactStore}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource: [ !GetAtt CodeBuildServiceRole.Arn, !GetAtt TaskExecutionRole.Arn ]
+                Effect: Allow
+                Action: iam:PassRole                  
+              - Resource: !GetAtt CodeBuildProject.Arn
+                Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+              - Resource: !Sub arn:${AWS::Partition}:ecs:*:${AWS::AccountId}:service/*
+                Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+              - Resource: !Ref FargateService
+                Effect: Allow
+                Action:
+                  - ecs:UpdateService
+              - Resource: !Sub arn:${AWS::Partition}:ecs:*:${AWS::AccountId}:task/*
+                Effect: Allow
+                Action:
+                  - ecs:DescribeTasks
+              - Resource: !Sub arn:${AWS::Partition}:ecs:*:${AWS::AccountId}:container-instance/*
+                Effect: Allow
+                Action:
+                  - ecs:ListTasks
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ecs:DescribeTaskDefinition
+                  - ecs:RegisterTaskDefinition
+
+## SecurityGroups
+  LoadBalancerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: !Sub ${AWS::StackName} Load Balancer Security Group  
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Load Balancer SG           
+        - Key: Application
+          Value: !Ref 'AWS::StackName'
+      VpcId: !ImportValue
+        'Fn::Sub': "${ResourcePrefix}-vpc-id"
+      SecurityGroupEgress: 
+        - Description: Allow outbound HTTP with the Internet
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+      SecurityGroupIngress: 
+        - Description: Expose HTTP to the world
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+
+  FargateSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: !Sub ${AWS::StackName} Fargate Security Group  
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-Fargate SG           
+        - Key: Application
+          Value: !Ref 'AWS::StackName'
+      VpcId: !ImportValue
+        'Fn::Sub': "${ResourcePrefix}-vpc-id"
+      SecurityGroupEgress: 
+        - Description: Allow outbound HTTP access to the Internet.
+          IpProtocol: "tcp"
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+      SecurityGroupIngress: 
+        - Description: Allow HTTP access to the Internet.
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt LoadBalancerSG.GroupId
+
+  # ECS/Fargate
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: AccessSSMParameter
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: #Update
+                  - ssm:GetParameters 
+                  - secretsmanager:*
+                Resource: "*" #Update
+
+## Fargate Hosting
+  ImageRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: !Ref AWS::StackName
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${AWS::StackName}
+      RetentionInDays: 30
+
+  FargateService:
+    Type: AWS::ECS::Service
+    DependsOn: [ LoadBalancerListener ]
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 2
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref FargateSG
+          Subnets: [Fn::ImportValue: !Sub "${ResourcePrefix}-private-subnet1-id", Fn::ImportValue: !Sub "${ResourcePrefix}-private-subnet2-id"]
+      LoadBalancers:
+        - ContainerName: dotnet-app
+          ContainerPort: 80
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-dotnet-app
+      RequiresCompatibilities: [ FARGATE ]
+      Memory: '3072'
+      Cpu: '1024'
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: dotnet-app
+          Image: amazon/amazon-ecs-sample
+          Essential: true
+          Memory: 1024
+          MountPoints:
+            - SourceVolume: my-volume
+              ContainerPath: /var/www/my-volume
+          PortMappings:
+            - ContainerPort: 80
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: !Ref AWS::StackName
+          Secrets:
+            - Name: !Sub ${Secret1}
+              ValueFrom: !Sub ${Secret1}
+            - Name: !Sub ${Secret2}
+              ValueFrom: !Sub ${Secret2}              
+      Volumes:
+        - Name: my-volume
+
+  # CodePipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStore
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: GitHub
+              InputArtifacts: []
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: SourceCode
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                PollForSourceChanges: false
+                OAuthToken: !Ref GitHubOAuthToken
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildOutput                
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: !Ref ECSCluster
+                ServiceName: !Ref FargateService
+                FileName: images.json
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+  # CodeBuild 
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        PrivilegedMode: true # Allows access to Docker daemon
+        Image: !FindInMap [ CodeBuildImages, DotNet, ImageName ]
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}
+      Name: !Ref AWS::StackName
+      ServiceRole: !Ref CodeBuildServiceRole
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                - IMAGE_URI="$REPOSITORY_URI:$TAG"
+                - cd ${BuildPath}
+                - dotnet build
+            build:
+              commands:
+                - cd $CODEBUILD_SRC_DIR/${DockerPath}
+                - docker build --tag "$IMAGE_URI" .
+            post_build:
+              commands:
+                - docker push "$IMAGE_URI"
+                - cd $CODEBUILD_SRC_DIR
+                - printf '[{"name":"dotnet-app","imageUri":"%s"}]' "$IMAGE_URI" > images.json
+          artifacts:
+            files: images.json
+            
+Outputs:
+  LoadBalancerUrl:
+    Description: The URL for the Application Load Balancer in front of the Fargate service.
+    Value: !Sub http://${LoadBalancer.DNSName}
