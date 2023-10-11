@@ -74,7 +74,7 @@ Parameters:
   GitHubBranch:
     Type: String
     AllowedPattern: "[A-Za-z0-9-]+"  
-    Default: task
+    Default: task/*
 
   DockerPath:
     Type: String
