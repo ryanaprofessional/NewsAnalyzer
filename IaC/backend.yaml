@@ -62,7 +62,7 @@ Parameters:
   GitHubOAuthToken:
     Type: String
     NoEcho: true
-    Default: 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 #Remove
+    Default: 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 #Remove
   GitHubOwner:
     Type: String
     AllowedPattern: "[A-Za-z0-9-]+"
@@ -74,7 +74,7 @@ Parameters:
   GitHubBranch:
     Type: String
     AllowedPattern: "[A-Za-z0-9-]+"  
-    Default: main
+    Default: task
 
   DockerPath:
     Type: String
@@ -136,6 +136,7 @@ Resources:
           Value: !Sub ${AWS::StackName}-LoadBalancer          
         - Key: Application
           Value: !Ref 'AWS::StackName'
+  
   LoadBalancerTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -146,7 +147,7 @@ Resources:
       HealthCheckIntervalSeconds: 45
       HealthCheckPath: !Sub "/${HealthCheckPath}"
       Matcher: 
-        HttpCode: 404 # This needs to be changed, we'll start as 404 until deployed and healthy
+        HttpCode: "200,404" # This needs to be changed, we'll start as 404 until deployed and healthy
       HealthyThresholdCount: 2
       Tags:
         - Key: Name
@@ -164,6 +165,193 @@ Resources:
       LoadBalancerArn: !Ref LoadBalancer
       Port: 80
       Protocol: HTTP    
+
+## Fargate Hosting
+  ImageRepository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: !Ref AWS::StackName
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${AWS::StackName}
+      RetentionInDays: 30
+
+  FargateService:
+    Type: AWS::ECS::Service
+    DependsOn: [ LoadBalancerListener ]
+    Properties:
+      Cluster: !Ref ECSCluster
+      DesiredCount: 2
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref FargateSG
+          Subnets: [Fn::ImportValue: !Sub "${ResourcePrefix}-private-subnet1-id", Fn::ImportValue: !Sub "${ResourcePrefix}-private-subnet2-id"]
+      LoadBalancers:
+        - ContainerName: dotnet-app
+          ContainerPort: 80
+          TargetGroupArn: !Ref LoadBalancerTargetGroup
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-dotnet-app
+      RequiresCompatibilities: [ FARGATE ]
+      Memory: '3072'
+      Cpu: '1024'
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: dotnet-app
+          Image: amazon/amazon-ecs-sample
+          Essential: true
+          Memory: 1024
+          MountPoints:
+            - SourceVolume: my-volume
+              ContainerPath: /var/www/my-volume
+          PortMappings:
+            - ContainerPort: 80
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: !Ref AWS::StackName
+          Secrets:
+            - Name: !Sub ${Secret1}
+              ValueFrom: !Sub ${Secret1}
+            - Name: !Sub ${Secret2}
+              ValueFrom: !Sub ${Secret2}              
+      Volumes:
+        - Name: my-volume
+
+  # CodePipeline
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactStore
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: GitHub
+              InputArtifacts: []
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: SourceCode
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                PollForSourceChanges: false
+                OAuthToken: !Ref GitHubOAuthToken
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildOutput                
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: !Ref ECSCluster
+                ServiceName: !Ref FargateService
+                FileName: images.json
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+  GithubWebhook:
+    Type: 'AWS::CodePipeline::Webhook'
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubOAuthToken
+      RegisterWithThirdParty: 'true'
+      Filters:
+      - JsonPath: "$.ref"
+        MatchEquals: refs/heads/{GitHubBranch}
+      TargetPipeline: !Ref Pipeline
+      TargetAction: GitHub
+      TargetPipelineVersion: !GetAtt Pipeline.Version
+
+  # CodeBuild 
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        PrivilegedMode: true # Allows access to Docker daemon
+        Image: !FindInMap [ CodeBuildImages, DotNet, ImageName ]
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}
+      Name: !Ref AWS::StackName
+      ServiceRole: !Ref CodeBuildServiceRole
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+          phases:
+            pre_build:
+              commands:
+                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+                - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                - IMAGE_URI="$REPOSITORY_URI:$TAG"
+                - cd ${BuildPath}
+                - dotnet build
+            build:
+              commands:
+                - cd $CODEBUILD_SRC_DIR/${DockerPath}
+                - docker build --tag "$IMAGE_URI" .
+            post_build:
+              commands:
+                - docker push "$IMAGE_URI"
+                - cd $CODEBUILD_SRC_DIR
+                - printf '[{"name":"dotnet-app","imageUri":"%s"}]' "$IMAGE_URI" > images.json
+          artifacts:
+            files: images.json
 
 ## IAM Roles
   # CodeBuild
@@ -339,180 +527,7 @@ Resources:
                 Action: #Update
                   - ssm:GetParameters 
                   - secretsmanager:*
-                Resource: "*" #Update
-
-## Fargate Hosting
-  ImageRepository:
-    Type: AWS::ECR::Repository
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-
-  ECSCluster:
-    Type: AWS::ECS::Cluster
-    Properties: 
-      ClusterName: !Ref AWS::StackName
-
-  LogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub /ecs/${AWS::StackName}
-      RetentionInDays: 30
-
-  FargateService:
-    Type: AWS::ECS::Service
-    DependsOn: [ LoadBalancerListener ]
-    Properties:
-      Cluster: !Ref ECSCluster
-      DesiredCount: 2
-      TaskDefinition: !Ref TaskDefinition
-      LaunchType: FARGATE
-      NetworkConfiguration:
-        AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
-          SecurityGroups:
-            - !Ref FargateSG
-          Subnets: [Fn::ImportValue: !Sub "${ResourcePrefix}-private-subnet1-id", Fn::ImportValue: !Sub "${ResourcePrefix}-private-subnet2-id"]
-      LoadBalancers:
-        - ContainerName: dotnet-app
-          ContainerPort: 80
-          TargetGroupArn: !Ref LoadBalancerTargetGroup
-
-  TaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Family: !Sub ${AWS::StackName}-dotnet-app
-      RequiresCompatibilities: [ FARGATE ]
-      Memory: '3072'
-      Cpu: '1024'
-      NetworkMode: awsvpc
-      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
-      ContainerDefinitions:
-        - Name: dotnet-app
-          Image: amazon/amazon-ecs-sample
-          Essential: true
-          Memory: 1024
-          MountPoints:
-            - SourceVolume: my-volume
-              ContainerPath: /var/www/my-volume
-          PortMappings:
-            - ContainerPort: 80
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-region: !Ref AWS::Region
-              awslogs-group: !Ref LogGroup
-              awslogs-stream-prefix: !Ref AWS::StackName
-          Secrets:
-            - Name: !Sub ${Secret1}
-              ValueFrom: !Sub ${Secret1}
-            - Name: !Sub ${Secret2}
-              ValueFrom: !Sub ${Secret2}              
-      Volumes:
-        - Name: my-volume
-
-  # CodePipeline
-  Pipeline:
-    Type: AWS::CodePipeline::Pipeline
-    Properties:
-      RoleArn: !GetAtt CodePipelineServiceRole.Arn
-      ArtifactStore:
-        Type: S3
-        Location: !Ref ArtifactStore
-      Stages:
-        - Name: Source
-          Actions:
-            - Name: GitHub
-              InputArtifacts: []
-              ActionTypeId:
-                Category: Source
-                Owner: ThirdParty
-                Version: 1
-                Provider: GitHub
-              OutputArtifacts:
-                - Name: SourceCode
-              Configuration:
-                Owner: !Ref GitHubOwner
-                Repo: !Ref GitHubRepo
-                Branch: !Ref GitHubBranch
-                PollForSourceChanges: false
-                OAuthToken: !Ref GitHubOAuthToken
-              RunOrder: 1
-        - Name: Build
-          Actions:
-            - Name: Build
-              ActionTypeId:
-                Category: Build
-                Owner: AWS
-                Version: 1
-                Provider: CodeBuild
-              Configuration:
-                ProjectName: !Ref CodeBuildProject
-              InputArtifacts:
-                - Name: SourceCode
-              OutputArtifacts:
-                - Name: BuildOutput                
-              RunOrder: 1
-        - Name: Deploy
-          Actions:
-            - Name: Deploy
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Version: 1
-                Provider: ECS
-              Configuration:
-                ClusterName: !Ref ECSCluster
-                ServiceName: !Ref FargateService
-                FileName: images.json
-              InputArtifacts:
-                - Name: BuildOutput
-              RunOrder: 1
-
-  # CodeBuild 
-  CodeBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Artifacts:
-        Type: CODEPIPELINE
-      Source:
-        Type: CODEPIPELINE
-      Environment:
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        PrivilegedMode: true # Allows access to Docker daemon
-        Image: !FindInMap [ CodeBuildImages, DotNet, ImageName ]
-        EnvironmentVariables:
-          - Name: AWS_ACCOUNT_ID
-            Value: !Ref AWS::AccountId
-          - Name: AWS_DEFAULT_REGION
-            Value: !Ref AWS::Region
-          - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}
-      Name: !Ref AWS::StackName
-      ServiceRole: !Ref CodeBuildServiceRole
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: !Sub |
-          version: 0.2
-          phases:
-            pre_build:
-              commands:
-                - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
-                - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
-                - IMAGE_URI="$REPOSITORY_URI:$TAG"
-                - cd ${BuildPath}
-                - dotnet build
-            build:
-              commands:
-                - cd $CODEBUILD_SRC_DIR/${DockerPath}
-                - docker build --tag "$IMAGE_URI" .
-            post_build:
-              commands:
-                - docker push "$IMAGE_URI"
-                - cd $CODEBUILD_SRC_DIR
-                - printf '[{"name":"dotnet-app","imageUri":"%s"}]' "$IMAGE_URI" > images.json
-          artifacts:
-            files: images.json
+                Resource: "*" #Update            
             
 Outputs:
   LoadBalancerUrl:

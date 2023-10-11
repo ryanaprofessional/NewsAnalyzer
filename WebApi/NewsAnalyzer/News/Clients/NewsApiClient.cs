@@ -1,5 +1,6 @@
 ﻿using News.Models.Other;
 using News.Static;
+using System.Collections;
 using System.Text.Json;
 
 namespace News.Clients
@@ -32,6 +33,12 @@ namespace News.Clients
             const string internalErrorDefaultMessage = "An internal error occured.  We are aware of this issue and are addressing.  Your specific error message is: ";
             try
             {
+                System.Collections.IDictionary environmentVariables = Environment.GetEnvironmentVariables();
+                foreach (DictionaryEntry entry in environmentVariables)
+                {
+                    _logger.LogDebug($"{entry.Key} = {entry.Value}");
+                }
+                _logger.LogDebug(environmentVariables.ToString());
                 var newsArticlesResponse = await _httpClient.GetAsync(baseUrl + "everything?" + query);
                 var responseContent = await newsArticlesResponse.Content.ReadAsStringAsync();
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
