@@ -350,3 +350,38 @@ Outputs:
     Value: !GetAtt Vpc.VpcId
     Export: 
       Name: !Sub "${ResourcePrefix}-vpc-id"
+  PublicSubnet1Id:
+    Description: "The ID of the public subnet1"
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Sub "${ResourcePrefix}-public-subnet1-id"
+  PublicSubnet2Id:
+    Description: "The ID of the public subnet2"
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Sub "${ResourcePrefix}-public-subnet2-id"
+  PrivateSubnet1Id:
+    Description: "The ID of the private subnet1"
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Sub "${ResourcePrefix}-private-subnet1-id"
+  PrivateSubnet2Id:
+    Description: "The ID of the private subnet2"
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Sub "${ResourcePrefix}-private-subnet2-id"
+  GatewayAttachmentId:
+    Description: "Vpcs GatewayAttachment (Connection to the internet)"
+    Value: !Ref GatewayAttachment
+    Export:
+      Name: !Sub "${ResourcePrefix}-gateway-attachment"
+  PrivateSubnet1RouteTableId:
+    Description: The id of the private subnet 1 route table
+    Value: !Ref PrivateSubnet1RouteTable
+    Export:
+      Name: !Sub "${ResourcePrefix}-private-subnet1-route"
+  PrivateSubnet2RouteTableId:
+    Description: The id of the private subnet 2 route table
+    Value: !Ref PrivateSubnet2RouteTable
+    Export:
+      Name: !Sub "${ResourcePrefix}-private-subnet2-route"      
