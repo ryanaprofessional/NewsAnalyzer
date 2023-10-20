@@ -72,7 +72,7 @@ namespace Ai.Controllers
 
             ChatCompletions request = new ChatCompletions
             {
-                Model = Environment.GetEnvironmentVariable("ChatModel") ?? "gpt - 3.5 - turbo",
+                Model = Environment.GetEnvironmentVariable("ChatModel") ?? "gpt-3.5-turbo",
                 Messages = messages
             };
 

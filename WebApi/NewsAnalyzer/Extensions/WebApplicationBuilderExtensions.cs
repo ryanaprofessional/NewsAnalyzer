@@ -9,7 +9,14 @@ namespace Extensions
     public static WebApplicationBuilder UseDynamoDb(this WebApplicationBuilder builder)
         {
             var awsOptions = builder.Configuration.GetAWSOptions();
-            awsOptions.Credentials = new BasicAWSCredentials(builder.Configuration["AwsAccessKey"], builder.Configuration["AwsSecretKey"]);
+            var awsAccessKey = builder.Configuration["AwsAccessKey"];
+            var awsSecretKey = builder.Configuration["AwsSecretKey"];
+
+            if (awsAccessKey != null && awsSecretKey != null)
+            {
+                awsOptions.Credentials = new BasicAWSCredentials(builder.Configuration["AwsAccessKey"], builder.Configuration["AwsSecretKey"]);
+            }
+
             builder.Services.AddDefaultAWSOptions(awsOptions);
             builder.Services.AddAWSService<IAmazonDynamoDB>();
             builder.Services.AddTransient<IDynamoDBContext, DynamoDBContext>();
